@@ -110,12 +110,12 @@ int get_tracker_sw_version(char* verstr)
 	
 }
 
-int single_trial() {
+int single_trial(int n) {
   int nResult = 0;
   int error;        /* trial result code */
 
-  // drift correct
-  while (1) {
+  // drift correct every third trial or at the start of each block
+  while ( (n==3) || (n==102) || ( (n>2) && (!((n-3)%3)) ) ) {
     {
       // Check link often so we can exit if tracker stopped
       if(!eyelink_is_connected()) return ABORT_EXPT;
@@ -192,7 +192,8 @@ int run_trials() {
     eyecmd_printf("record_status_message ’TEXT, PAGE %d/%d’ ", 1, 2);
     eyemsg_printf("TRIALID %d %d", nTrial++, (int) g_pExperiment->CurrentItemID());
 
-    nResult = single_trial();
+    nResult = single_trial(nTrial);
+    nTrial++;
 
     end_realtime_mode();
 
