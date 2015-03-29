@@ -722,11 +722,17 @@
 
   lord <- data.frame(ListOrderID = NA_integer_,
                      ListID = 999,
-                     ItemCellID = extras[["ItemCellID"]],
-                     OrderConstraint = 4 : 5,
-                     PhaseID = rep(1 : 2, each = 2))
+                     ItemCellID = c(999999997,
+                         10002, 10000,
+                         extras[["ItemCellID"]][1:2],
+                         999999998,
+                         10003, 10001,
+                         extras[["ItemCellID"]][3:4]),
+                     OrderConstraint = 1:5,
+                     PhaseID = rep(1 : 2, each = 5))
 
   con2 <- dbConnect(SQLite(), "LexCompRI3.db")
+  dbGetQuery(con2, "DELETE FROM ListOrder WHERE ListID = 999")
 
   dbWriteTable(con2, "ListOrder", lord, append = TRUE, overwrite = FALSE)
 
