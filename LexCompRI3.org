@@ -388,13 +388,13 @@
                         "sitdown.wav", "silence.wav", "silence.wav", "4.wav",
                         "silence.wav", "3.wav", "sitdown.wav", "wait.wav",
                         "sitdown.wav", "silence.wav", "silence.wav", "2.wav"))
-        
+      
   res2 <- data.frame(ResID = NA_integer_,
                      Code = rep("SFILE", 4),
                      ItemCellID = 10000 : 10003,
                      Data = c("practice_SR.wav", "practice_SA.wav",
                          "walkthrough_SR.wav", "walkthrough_SA.wav"))
-         
+       
   dbWriteTable(con2, "Item", itm, append = TRUE, overwrite = FALSE)
 
   dbWriteTable(con2, "Resource", rbind(res, res2), append = TRUE, overwrite = FALSE)
@@ -441,7 +441,7 @@
                        stringsAsFactors=FALSE)
   chg.AOI <- merge(chging, practiceAOI)[,colnames(practiceAOI)]
   chg.AOI$Name <- "RED"
-  chg.AOI$Resource <- "$HCOL" # todo get rid of this
+  chg.AOI$Resource <- "red.bmp" # todo get rid of this
   chg.AOI$Layer <- 2
 
   post <- data.frame(ID=10000:10003,
