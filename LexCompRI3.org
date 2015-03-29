@@ -472,7 +472,7 @@
       mutate(Resource = ifelse((Name == "RED") & (ID > 10001),
                  "white.bmp", "red.bmp"))
 
-  dbWriteTable(con, "AOI", res2, append=TRUE, row.names=FALSE)
+  dbWriteTable(con, "AOI", res3, append=TRUE, row.names=FALSE)
 
   saveRDS(res, file="practiceaois.rds")
 
