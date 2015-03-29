@@ -7,3 +7,8 @@
 /tests/*/response
 *~
 /tools/audioprobe
+fill_db_tables.R
+tests.R
+makeletters.php
+aoiloc.rds
+practiceaois.rds
