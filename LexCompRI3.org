@@ -470,7 +470,7 @@
 
   res3 <- res2 %>%
       mutate(Resource = ifelse((Name == "RED") & (ID > 10001),
-                 "white.bmp", "red.bmp"))
+                 "white.bmp", Resource))
 
   dbWriteTable(con, "AOI", res3, append=TRUE, row.names=FALSE)
 
