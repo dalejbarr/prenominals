@@ -410,7 +410,8 @@
 
 #+BEGIN_SRC R
   ## practice stimuli AOIs
-  library(RSQLite)
+  library("dplyr")
+  library("RSQLite")
 
   con <- dbConnect(SQLite(), "LexCompRI3.db")
 
@@ -463,7 +464,11 @@
   res <- res[order(res$ID),]
   res$AOIID <- 100000 + 1:nrow(res)
 
-  dbWriteTable(con, "AOI", res, append=TRUE, row.names=FALSE)
+  res2 <- res %>%
+      mutate(x1 = ifelse(Name == "RED", x1 - 2, x1),
+             y1 = ifelse(Name == "RED", y1 - 2, y1))
+
+  dbWriteTable(con, "AOI", res2, append=TRUE, row.names=FALSE)
 
   saveRDS(res, file="practiceaois.rds")
 
@@ -667,7 +672,7 @@
                                "Layer", "Resource",
                                "x", "y",
                                "Resource"),
-                           Info=c(paste0("@watch[", firstWatchID, "].selectedAOI"),
+                           Info=c(paste0("@watch[", firstWatchID + 1, "].selectedAOI"),
                                "7", "4", "centermouse.bmp", "430", "302",
                                "$SCUE4"),
                            stringsAsFactors=FALSE)
