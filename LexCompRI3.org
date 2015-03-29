@@ -1,7 +1,7 @@
 #+TITLE: Size contrast perspective taking experiment (LexCompRI3)
 #+AUTHOR: Dale Barr
 
-* Tasks																														 :noexport:
+* Tasks
 
 * Stimulus Creation
 
@@ -315,6 +315,10 @@
                          OrderConstraint = 1,
                          PhaseID = c(pinf[, x[["cbinfo"]] + 1]))
       dbWriteTable(con, "ListOrder", lord, append=TRUE, row.names=FALSE)    
+      res <- data.frame(ResID = NA, Code = "MSG",
+                        ItemCellID = c(999999997, 999999998),
+                        Data = c("blockSR.bmp", "blockSA.bmp"))
+      dbWriteTable(con, "Resource", res, append = TRUE, row.names = FALSE)    
   }
 
   aoiloc <- matrix(c(228, 100, 596, 100, 228, 468, 596, 468), ncol=2, byrow=TRUE)
