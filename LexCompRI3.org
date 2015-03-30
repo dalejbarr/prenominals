@@ -831,6 +831,18 @@
   copy_to(con, item_inf4, "ItemInfo", temporary = FALSE)
 #+END_SRC
 
+
+** Add in session 998 (full session)
+
+#+BEGIN_SRC sql
+  INSERT INTO Session VALUES
+  (998, 1, 1, '2015-03-30', "NO_DATA", NULL, NULL, NULL);
+
+  INSERT INTO Subject VALUES
+  (1995, 998, 1, 'X', 'practice'),
+  (1996, 998, 2, 'X', 'practice');
+#+END_SRC
+
 * Tests
 	:PROPERTIES:
 	:header-args:R: :tangle tests.R
