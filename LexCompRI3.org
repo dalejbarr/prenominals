@@ -384,17 +384,17 @@
   res <- data.frame(ResID = NA_integer_,
                     Code = paste0("SCUE", c(2, 3, 4, 1)),
                     ItemCellID = rep(10000 : 10003, each = 4),
-                    Data = c("silence.wav", "2.wav", "sitdown.wav", "wait.wav",
-                        "sitdown.wav", "silence.wav", "silence.wav", "4.wav",
-                        "silence.wav", "3.wav", "sitdown.wav", "wait.wav",
-                        "sitdown.wav", "silence.wav", "silence.wav", "2.wav"))
-    
+                    Data = c("silence.wav", "1.wav", "sitdown.wav", "wait.wav",
+                        "sitdown.wav", "silence.wav", "silence.wav", "3.wav",
+                        "silence.wav", "2.wav", "sitdown.wav", "wait.wav",
+                        "sitdown.wav", "silence.wav", "silence.wav", "4.wav"))
+
   res2 <- data.frame(ResID = NA_integer_,
                      Code = rep("SFILE", 4),
                      ItemCellID = 10000 : 10003,
                      Data = c("practice_SR.wav", "practice_SA.wav",
                          "walkthrough_SR.wav", "walkthrough_SA.wav"))
-     
+ 
   dbWriteTable(con2, "Item", itm, append = TRUE, overwrite = FALSE)
 
   dbWriteTable(con2, "Resource", rbind(res, res2), append = TRUE, overwrite = FALSE)
@@ -418,7 +418,10 @@
   aoimx <- matrix(c(228, 228, 596, 596, 100, 468, 100, 468),
                   nrow=4, dimnames=list(NULL, c("x1","y1")))
 
-  cfg <- c(replicate(4, sample(1:4)))
+  tloc <- c(1, 2, 3, 4)
+  apos <- sapply(tloc, function(x) c(x, sample(setdiff(1:4, x))))
+
+  # cfg <- c(replicate(4, sample(1:4)))
   smlg <- c(replicate(4, rep(sample(1:2),2)))
 
   practiceAOI <- data.frame(AOIID=NA_integer_,
@@ -427,8 +430,8 @@
                             Name=c("TARGET", "CONTR", "COMP", "CONTR2"),
                             Resource=paste0(sprintf("p%03d", rep(1:8, each=2)),
                                 c("_small.bmp","_large.bmp")[smlg]),
-                            x1=aoimx[cfg,"x1"],
-                            y1=aoimx[cfg,"y1"],
+                            x1=aoimx[c(apos), "x1"],
+                            y1=aoimx[c(apos), "y1"],
                             Layer=5, stringsAsFactors=FALSE)
 
   ## targD.AOI <- subset(practiceAOI, Name=="TARGET")
