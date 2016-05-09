@@ -1,3 +1,0 @@
-#include "StimulusDisplay.hpp"
-
-Stimulus

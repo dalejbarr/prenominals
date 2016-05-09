@@ -1,0 +1,995 @@
+#+TITLE: Size contrast perspective taking experiment (LexCompRI3)
+#+AUTHOR: Dale Barr
+
+* Tasks
+
+* Stimulus Creation
+
+** Generate the letter pair stimuli
+
+ #+BEGIN_SRC php :tangle makeletters.php
+   <?php
+   ///////////////////////
+   // globals
+   $fontfile = "/mnt/nfs/dale-lab/expt/LexCompRI3/seguibk.ttf";
+   //$fontfile = "/mnt/nfs/dale-lab/expt/LexCompRI3/Cyberbit.ttf";
+   $boxwidth = 200;
+   $boxheight = 200;
+
+   ///////////////////////
+   // class definitions
+   class Letter {
+     // property
+     public $id = 'A';
+     public $size = 0.0;
+     public function __construct($id, $size) {
+       $this->id = $id;
+       $this->size = $size;
+     }
+     public function fsize() {
+       //  font size = 80
+       return ($this->size*80 + 80);
+     }  
+   }
+
+   ///////////////////////
+   // function definitions
+   function getcenteringbox($let) {
+     global $fontfile, $boxwidth, $boxheight;
+
+     $bbox = imagettfbbox($let->fsize(), 0, $fontfile, $let->id);
+    
+     $width = $bbox[4]-$bbox[0];
+     $height = $bbox[1]-$bbox[5];
+    
+     $xmar = round(($boxwidth - $width)/2);
+     $ymar = round(($boxwidth - $height)/2);
+    
+     $x1 = $xmar;
+     $y1 = $boxwidth - $ymar;
+    
+     return @array($x1-$bbox[0], $y1-$bbox[1]);
+   }
+    
+   function centerletter($let) {
+     global $im, $fontfile;
+
+     $loc = getcenteringbox($let);
+     //echo $xb." ".$yb." ".$loc[0]." ".$loc[1]."\n";
+    
+     imagettftext($im, $let->fsize(), 0, 0, 0, 
+									$this->imcol[$let->color-1], $fontfile, $let->id);
+   }
+
+   function letterfile($id, $size, $fname) {
+     global $fontfile;
+     // creation
+     $im = imagecreatetruecolor(200, 200);
+     $fg = imagecolorallocate($im, 255, 255, 255);
+     $bg = imagecolorallocate($im, 0, 0, 0);      
+     imagefill($im, 0, 0, $bg);
+
+     $let = new Letter($id, $size);
+     $loc = getcenteringbox($let);
+
+     imagettftext($im, $let->fsize(), 0, $loc[0], $loc[1], 
+									$fg, $fontfile, $let->id);
+
+     // imagepng($im, "resource/".$fname);
+     imagepng($im, $fname);
+
+     // destruction
+     imagecolordeallocate($im, $fg);
+     imagecolordeallocate($im, $bg);
+     imagedestroy($im);
+   }
+
+   $stim = "ABCDEFGHJKLMNPQRSTUVWXYZ123456789$%+=@#?~*&\"(/]{";
+   // $stim = json_decode('"'.'\u1000'.'"');
+   for ($i = 0; $i < strlen($stim); $i++) {
+     $inum = str_pad($i+1, 3, "0", STR_PAD_LEFT);
+     echo $stim[$i]." ".$inum."\n";
+     letterfile($stim[$i], .4, "png/".$inum."_small.png");
+     letterfile($stim[$i], 1, "png/".$inum."_large.png");
+   }
+   //letterfile('O', .4, "small_e.png");
+   //letterfile('O', 1.0, "large_e.png");
+   ?>
+ #+END_SRC
+
+
+
+* Experiment Design
+	:PROPERTIES:
+	:header-args:R: :tangle fill_db_tables.R
+	:END:
+
+** Create the pairing between symbols in each display for each session
+
+#+BEGIN_SRC R
+  #################################
+  ## generate symbol pairings
+  library(plyr)
+  library(dplyr)
+  library(RSQLite)
+
+  con <- dbConnect(SQLite(), "LexCompRI3.db")
+
+  # globals
+  nsessions <- 32
+
+  pairSymbols <- function(x, nsymbols=48) {
+      v1 <- vector("integer", nsymbols)
+      for (i in 1:nsymbols) {
+          if (i > 1) {
+              used <- c(v1[1:(i-1)], i)
+          } else {
+              used <- i
+          }
+          v1[i] <- sample(setdiff(1:nsymbols, used), 1)
+      }
+      v2 <- vector("integer", nsymbols)
+      for (i in 1:nsymbols) {
+          if (i > 1) {
+              used <- unique(c(v2[1:(i-1)], v1[i], i))
+          } else {
+              used <- c(v1[1], i)
+          }
+          v2[i] <- sample(setdiff(1:nsymbols, used), 1)
+      }
+      pairings <- data.frame(SessionID=x, p1=rep(1:nsymbols, 2),
+                             p2=c(v1, v2))
+      pairings
+  }
+
+  # run this until it works without an error
+  completed <- FALSE
+
+  while(!completed) {
+      completed <- tryCatch({pairs <- ldply(1:nsessions, pairSymbols); TRUE},
+               error = function(err) FALSE)
+  }
+
+  dbWriteTable(con, "SessionPairs", pairs, append=FALSE, overwrite = TRUE)
+
+  dbDisconnect(con)
+#+END_SRC
+
+** Generate all of the table data based on pairings in SessionPairs
+
+#+BEGIN_SRC R
+  #####################
+  ## main routine to build table data 
+  library(RSQLite)
+  library(dplyr)
+
+  deleteSessionInfo <- function() {
+      dbGetQuery(con, "DELETE FROM Session WHERE SessionID!=999")
+      dbGetQuery(con, "DELETE FROM Subject WHERE SessionID!=999")
+      dbGetQuery(con, "DELETE FROM Subject WHERE SessionID!=999")
+      dbGetQuery(con, "DELETE FROM List WHERE ListID!=999")
+      dbGetQuery(con, "DELETE FROM ListOrder WHERE ListID!=999")
+      dbGetQuery(con, "DELETE FROM Resource")
+      dbGetQuery(con, "DELETE FROM AOI WHERE Link='itemcell'")
+      dbGetQuery(con, "DELETE FROM Item WHERE ItemCellID!=999999999")
+      dbGetQuery(con, "DELETE FROM EventTiming")
+      dbGetQuery(con, "DELETE FROM StateTiming")
+      dbGetQuery(con, "DELETE FROM Eye")
+      dbGetQuery(con, "DELETE FROM GamePad")
+      dbGetQuery(con, "DELETE FROM KeyTrack")
+      dbGetQuery(con, "DELETE FROM Keyboard")
+      dbGetQuery(con, "DELETE FROM Msg")
+      dbGetQuery(con, "DELETE FROM Mouse")
+      dbGetQuery(con, "DELETE FROM Response")
+      dbGetQuery(con, "DELETE FROM Trial")
+      dbGetQuery(con, "DELETE FROM SubjectsExcluded")
+      dbGetQuery(con, "DELETE FROM SessionsExcluded")
+      dbGetQuery(con, "DELETE FROM ResponsesExcluded")
+      dbGetQuery(con, "UPDATE sqlite_sequence SET seq = 1")
+  }
+
+  buildinsert <- function(tbl, ...) {
+      hed <- paste0("INSERT INTO ", tbl, " VALUES (")
+      args <- list(...)
+      mid <- do.call("paste", c(args, list(sep=", ")))
+      paste0(hed, mid, ")")
+  }
+
+  makeAOI <- function(rr, nr, nsym) {
+      ## TLg = 1:  large, small
+      ## TLg = 2:  small, large
+      vsize <- c("large", "small")[rr[["TLg"]]:(3 - rr[["TLg"]])]
+      naoirows <- 10
+      aoiid <- (rr[["ItemCellID"]] - 1) * naoirows +
+          (rr[["SessionID"]] - 1) * nr * naoirows
+      ## chgcond: one -> two contrasts or two -> one contrasts?
+      ## the commented line below had the bug from the original experiment
+      ## chgcond <- (rr$Cell-1 %% 2) + 1    # this was the original buggy line :(
+      chgcond <- (rr[["Cell"]] - 1) %% 2 + 1  ## correct version
+      rr[["p3"]] <- sample(setdiff(1:nsym, c(rr[["p1"]], rr[["p2"]])), 1)
+      acfg <- sample(1:4)
+      bmpord <- sprintf("%03d_%s.bmp",
+                        c(rr[["p1"]], rr[["p2"]], rr[["p1"]], rr[["p2"]]),
+                        c(vsize[1], vsize[1], vsize[2], vsize[2]))
+      chgbmp <- c(rr[["p1"]], rr[["p2"]], rr[["p1"]], rr[["p2"]])[rr[["Cfg"]]]
+      chgsz <- c(vsize[1], vsize[1], vsize[2], vsize[2])[rr$Cfg]
+      distr <- sprintf("%03d_%s.bmp", rr[["p3"]], chgsz)
+      if (chgcond == 1) { 
+           post <- distr
+      } else {
+          post <- bmpord[rr[["Cfg"]]]
+          bmpord[rr[["Cfg"]]] <- distr
+      }
+      aoi <- data.frame(AOIID = aoiid + 1:naoirows,
+                        Link = 'itemcell',
+                        ID = rr[["ItemCellID"]],
+                        Name=c("TARGET", "CONTR", "COMP", "CONTR2", "POSTCHANGE",
+                            "STAR", "ERR_A", "ERR_B", "ERR_C", "RED"),
+                        Resource=c(bmpord,
+                            post, "star.bmp", "wrong.bmp", "wrong.bmp", "wrong.bmp",
+                            "red.bmp"),
+                        x1=c(aoiloc[acfg, 1],
+                            aoiloc[acfg, 1][rr[["Cfg"]]],
+                            aoiloc[acfg, 1],
+                            aoiloc[acfg, 1][rr[["Cfg"]]] - 2),
+                        y1=c(aoiloc[acfg, 2],
+                            aoiloc[acfg, 2][rr[["Cfg"]]],
+                            aoiloc[acfg, 2],
+                            aoiloc[acfg, 2][rr[["Cfg"]]] - 2),
+                        Layer=c(5, 5, 5, 5, 4, 2, 2, 2, 2, 1),
+                        stringsAsFactors = FALSE)
+      return(aoi)
+  }
+
+  ## this is the main function to create the experiment structure
+  makeSessionListData <- function(sess) {
+      sid <- sess[["SessionID"]][1]
+      cbinfo <- sess[["cbinfo"]][1]
+      # print(sid) # debugging
+      # write the session info to the database
+      nsym <- dbGetQuery(con, "SELECT COUNT(*) AS N FROM Symbols")  %>%
+          `[[`("N")
+      dbGetQuery(con, buildinsert("Session", sid, 1, sid, "datetime()",
+                                  "\"NO_DATA\"", "NULL", "NULL", round(runif(1, 0, 1)*1000000)))
+      # write the subject info
+      dbGetQuery(con, buildinsert("Subject", (sid-1)*2+1, sid, 1, "'X'", "\"\""))
+      dbGetQuery(con, buildinsert("Subject", (sid-1)*2+2, sid, 2, "'X'", "\"\""))
+
+      # write the list info
+      dbGetQuery(con, buildinsert("List", sid, sprintf("\"s%02d\"", sid), 0))
+
+      # listorder data
+      icid <- (sid-1)*nrow(sess)
+      lord <- data.frame(ListOrderID = 1:nrow(sess) + icid,
+                         ListID = sid, ItemCellID = icid + 1:nrow(sess),
+                         OrderConstraint = NA,
+                         PhaseID = rep(1:2, each = nrow(sess) / 2))
+      dbWriteTable(con, "ListOrder", lord, append=TRUE, row.names=FALSE)
+
+      # item data
+      iname <- sprintf("%02d-%02d", sess$p1, sess$p2)
+      blk1 <- sample(rep(c(2 * cbinfo + 1, 2 * cbinfo + 2), each = nrow(sess) / 4))
+      blk2 <- sample(rep(c(2 * (1 - cbinfo) + 1, 2 * (1 - cbinfo) + 2), each = nrow(sess) / 4))
+      itm <- data.frame(ItemCellID = icid + 1:nrow(sess), Item = iname,
+                        Cell = c(blk1, blk2),
+                        TemplateID = 3, stringsAsFactors = FALSE)
+      dbWriteTable(con, "Item", itm, append=TRUE, row.names=FALSE)
+
+      # resource data
+      resid <- (sid - 1) * 2 * nrow(sess)
+      res <- data.frame(ResID = resid + 1:nrow(sess),
+                        Code = "SFILE",
+                        ItemCellID = icid + 1:nrow(sess),
+                        Data = sprintf("%02d.wav", 1:nrow(sess)))
+      dbWriteTable(con, "Resource", res, append=TRUE, row.names=FALSE)
+
+      # AOI data
+      # Cfg: 1, 2, 3, 4
+      # TLg: 1 = target large; 2 = target small
+      itm2 <- itm %>% group_by(Cell) %>%
+          mutate(Cfg = sample(rep(1:4, each = n() / 4))) %>% # Cfg: which one is the target
+          group_by(Cell, Cfg) %>%
+          mutate(TLg = sample(rep(1:2, each = n() / 2))) %>% # is the target small or large
+          ungroup()
+      newdat <- cbind(sess, itm2)
+      aoi <- newdat %>% rowwise() %>% do(makeAOI(., nr = nrow(sess), nsym = nsym)) %>%
+          ungroup()
+      ## TODO testAOI
+      ## ff <- aoi %>% rename(ItemCellID = ID) %>% select(-Link, -AOIID, -Layer) %>%
+      ##    inner_join(itm, "ItemCellID") %>% testAOI()
+      dbWriteTable(con, "AOI", as.data.frame(aoi), append = TRUE, row.names = FALSE)
+  }
+
+  insertBreakTrials <- function(x) { # x = sessCounterbalance
+      # TODO check whether itemcellID = 999999999 exists
+      dbGetQuery(con, "DELETE FROM Item WHERE ItemCellID = 999999998 OR ItemCellID = 999999997")
+      itm <- data.frame(ItemCellID = c(999999997, 999999998),
+                        Item = c("blockSR", "blockSA"),
+                        Cell = 0,
+                        TemplateID = 999999999, stringsAsFactors=FALSE)
+      dbWriteTable(con, "Item", itm, append=TRUE, row.names=FALSE)
+      pinf <- matrix(c(1, 2, 2, 1), ncol = 2)
+      lord <- data.frame(ListOrderID = NA,
+                         ListID = rep(x[["SessionID"]], each = 2),
+                         ItemCellID = c(999999997, 999999998),
+                         OrderConstraint = 1,
+                         PhaseID = c(pinf[, x[["cbinfo"]] + 1]))
+      dbWriteTable(con, "ListOrder", lord, append=TRUE, row.names=FALSE)    
+      res <- data.frame(ResID = NA, Code = "MSG",
+                        ItemCellID = c(999999997, 999999998),
+                        Data = c("blockSR.bmp", "blockSA.bmp"))
+      dbWriteTable(con, "Resource", res, append = TRUE, row.names = FALSE)    
+  }
+
+  aoiloc <- matrix(c(228, 100, 596, 100, 228, 468, 596, 468), ncol=2, byrow=TRUE)
+  saveRDS(aoiloc, "aoiloc.rds")
+
+  con <- dbConnect(SQLite(), 'LexCompRI3.db')
+
+  spairs <- dbReadTable(con, "SessionPairs")
+
+  nsessions <- length(unique(spairs$SessionID))
+  ## for counterbalancing:
+  ##   0 = SR then SA;
+  ##   1 = SA then SR
+  sessCounterbalance <- data.frame(SessionID = 1:nsessions,
+                                   cbinfo = sample(rep(0:1, each=(nsessions/2)))) 
+  deleteSessionInfo()
+
+  tmpdat <- inner_join(spairs, sessCounterbalance)
+  tmpdat %>%
+      group_by(SessionID) %>%
+      do(junk = makeSessionListData(.))
+  ## d_ply(tmpdat, .(SessionID), makeSessionListData)
+
+  insertBreakTrials(sessCounterbalance)
+
+  dbDisconnect(con)
+#+END_SRC
+
+** Add in practice and walkthroughs
+
+#+BEGIN_SRC R
+  ############################################
+  ## add in practice trials and walkthroughs
+  library("dplyr")
+  library("RSQLite")
+
+  con <- src_sqlite("LexCompRI3.db")
+
+  ## get counterbalancing information
+  cbinf <- tbl(con, "ListOrder") %>%
+      collect() %>%
+      filter((ItemCellID == 999999997) | (ItemCellID == 999999998),
+             ListID != 999) %>%
+      arrange(ListID, PhaseID) %>%
+      mutate(isSR = (ItemCellID == 999999997)) %>%
+      select(ListID, PhaseID, isSR)
+
+  lord <- data.frame(ItemCellID = c(10002, 10000, 10003, 10001),
+             OrderConstraint = 2 : 3,
+             isSR = c(TRUE, TRUE, FALSE, FALSE)) %>%
+      merge(cbinf) %>%
+      arrange(ListID, PhaseID, OrderConstraint, ItemCellID) %>%
+      mutate(ListOrderID = NA_integer_) %>%
+      select(-isSR)
+
+  con2 <- dbConnect(SQLite(), "LexCompRI3.db")
+
+  itm <- data.frame(ItemCellID = c(10000, 10001, 10002, 10003),
+                    Item = c("practice_SR", "practice_SA", "walkthrough_SR", "walkthrough_SA"),
+                    Cell = 0,
+                    TemplateID = 3)
+
+  res <- data.frame(ResID = NA_integer_,
+                    Code = paste0("SCUE", c(2, 3, 4, 1)),
+                    ItemCellID = rep(10000 : 10003, each = 4),
+                    Data = c("silence.wav", "1.wav", "sitdown.wav", "wait.wav",
+                        "sitdown.wav", "silence.wav", "silence.wav", "3.wav",
+                        "silence.wav", "2.wav", "sitdown.wav", "wait.wav",
+                        "sitdown.wav", "silence.wav", "silence.wav", "4.wav"))
+
+  res2 <- data.frame(ResID = NA_integer_,
+                     Code = rep("SFILE", 4),
+                     ItemCellID = 10000 : 10003,
+                     Data = c("practice_SR.wav", "practice_SA.wav",
+                         "walkthrough_SR.wav", "walkthrough_SA.wav"))
+ 
+  dbWriteTable(con2, "Item", itm, append = TRUE, overwrite = FALSE)
+
+  dbWriteTable(con2, "Resource", rbind(res, res2), append = TRUE, overwrite = FALSE)
+
+  dbWriteTable(con2, "ListOrder", lord[, c("ListOrderID", "ListID", "ItemCellID",
+                                           "OrderConstraint", "PhaseID")],
+               append = TRUE, overwrite = FALSE)
+
+  dbDisconnect(con2)
+#+END_SRC
+
+** Insert the aois for the practice stimuli
+
+#+BEGIN_SRC R
+  ## practice stimuli AOIs
+  library("dplyr")
+  library("RSQLite")
+
+  con <- dbConnect(SQLite(), "LexCompRI3.db")
+
+  aoimx <- matrix(c(228, 228, 596, 596, 100, 468, 100, 468),
+                  nrow=4, dimnames=list(NULL, c("x1","y1")))
+
+  tloc <- c(1, 2, 3, 4)
+  apos <- sapply(tloc, function(x) c(x, sample(setdiff(1:4, x))))
+
+  # cfg <- c(replicate(4, sample(1:4)))
+  smlg <- c(replicate(4, rep(sample(1:2),2)))
+
+  practiceAOI <- data.frame(AOIID=NA_integer_,
+                            Link='itemcell',
+                            ID=rep(10000:10003, each=4),
+                            Name=c("TARGET", "CONTR", "COMP", "CONTR2"),
+                            Resource=paste0(sprintf("p%03d", rep(1:8, each=2)),
+                                c("_small.bmp","_large.bmp")[smlg]),
+                            x1=aoimx[c(apos), "x1"],
+                            y1=aoimx[c(apos), "y1"],
+                            Layer=5, stringsAsFactors=FALSE)
+
+  ## targD.AOI <- subset(practiceAOI, Name=="TARGET")
+  ## targD.AOI$Name <- "TARGET_D"
+  ## targD.AOI$x1 <- targD.AOI$x1 + 1024
+  ## targD.AOI$Resource <- "star.bmp"
+  ## targD.AOI$Layer <- 1
+
+  chging <- data.frame(ID=10000:10003,
+                       Name=c("TARGET", "TARGET", "TARGET", "TARGET"),
+                       stringsAsFactors=FALSE)
+  chg.AOI <- merge(chging, practiceAOI)[,colnames(practiceAOI)]
+  chg.AOI$Name <- "RED"
+  chg.AOI$Resource <- "red.bmp" # todo get rid of this
+  chg.AOI$Layer <- 2
+
+  post <- data.frame(ID=10000:10003,
+                        Name="TARGET")
+  post.AOI <- merge(post, practiceAOI)[,colnames(practiceAOI)]
+  post.AOI$Name <- "POSTCHANGE"
+  ix <- post.AOI$ID==10000
+  post.AOI$Resource[ix] <- paste0("p009", substr(post.AOI$Resource[ix], 5, 14))
+  ix <- post.AOI$ID==10001
+  post.AOI$Resource[ix] <- paste0("p010", substr(post.AOI$Resource[ix], 5, 14))
+  post.AOI$Layer <- 4
+
+  fbk.AOI <- practiceAOI
+  fbk.AOI$Name <- c("STAR","ERR_A","ERR_B","ERR_C")
+  fbk.AOI$Resource <- c("star.bmp", rep("wrong.bmp",3))
+  fbk.AOI$Layer <- 2
+
+  res <- rbind(practiceAOI, post.AOI, fbk.AOI, chg.AOI)
+  res <- res[order(res$ID),]
+  res$AOIID <- 100000 + 1:nrow(res)
+
+  res2 <- res %>%
+      mutate(x1 = ifelse(Name == "RED", x1 - 2, x1),
+             y1 = ifelse(Name == "RED", y1 - 2, y1))
+
+  res3 <- res2 %>%
+      mutate(Resource = ifelse((Name == "RED") & (ID > 10001),
+                 "white.bmp", Resource))
+
+  dbWriteTable(con, "AOI", res3, append=TRUE, row.names=FALSE)
+
+  saveRDS(res, file="practiceaois.rds")
+
+  dbDisconnect(con)
+#+END_SRC
+
+** Add in the resources with the audio cues for the confederate
+
+#+BEGIN_SRC R
+  ##############################################
+  ## audio cues for confederate
+  library(dplyr)
+  library(magrittr)
+  library(RSQLite)
+
+  con <- dbConnect(SQLite(), dbname="LexCompRI3.db")
+
+  dbGetQuery(con, "
+  DELETE FROM Resource WHERE
+  (Code='SCUE1' OR Code='SCUE2' OR Code='SCUE3' OR Code='SCUE4')
+  AND ((ItemCellID < 10000) OR (ItemCellID > 10004))
+  ")
+
+  firstResID <- dbGetQuery(con, "select MAX(ResID) FROM Resource") %>%
+      `[[`("MAX(ResID)") + 1
+
+  tloc <- dbGetQuery(con, "
+  SELECT ItemCellID, Cell, x1, y1
+  FROM Item
+  INNER JOIN AOI ON Item.ItemCellID=AOI.ID AND AOI.Link='itemcell'
+  WHERE Name='TARGET'
+  ")
+
+  wavFiles <- data.frame(x1=rep(c(228, 596), c(2,2)),
+                         y1=c(100,468),
+                         Data=c("1.wav", "3.wav", "2.wav", "4.wav"))
+
+  icwav <- inner_join(tloc, wavFiles) %>%
+      select(-x1, -y1)
+
+  ## shared antecedent
+  icid.sa <- icwav %>% filter((Cell == 3) | (Cell == 4)) %>%
+      select(ItemCellID) %>% extract2("ItemCellID")
+
+  ## shared result... this is wrong!
+  icid.sr <- icwav %>% filter((Cell == 1) | (Cell == 2)) %>%
+      select(ItemCellID) %>% extract2("ItemCellID")
+
+  res.sa <- data.frame(ResID=NA,
+                       Code=c("SCUE2", "SCUE3", "SCUE4"),
+                       ItemCellID=rep(icid.sa, each=3),
+                       Data=c("sitdown.wav", "silence.wav", "silence.wav"))
+
+  res.sr <- data.frame(ResID=NA,
+                       Code=c("SCUE1", "SCUE2", "SCUE4"),
+                       ItemCellID=rep(icid.sr, each=3),
+                       Data=c("wait.wav", "silence.wav", "sitdown.wav"))
+
+  tloc.sa <- data.frame(ResID=NA,
+                        Code="SCUE1",
+                        ItemCellID=icid.sa) %>%
+             inner_join(select(icwav, ItemCellID, Data))
+
+  tloc.sr <- data.frame(ResID=NA,
+                        Code="SCUE3",
+                        ItemCellID=icid.sr) %>%
+             inner_join(select(icwav, ItemCellID, Data))
+
+  res <- rbind(res.sa, tloc.sa, res.sr, tloc.sr) %>%
+      arrange(ItemCellID, Code) %>%
+      mutate(ResID=firstResID+row_number()-1)
+
+  dbWriteTable(con, "Resource", res,
+               row.names=FALSE, append=TRUE)
+
+  dbDisconnect(con)
+#+END_SRC
+
+** Add in the events
+
+#+BEGIN_SRC R
+  ## create all the events
+  library(dplyr)
+  library(RSQLite)
+
+  timePre <- 3000  # how much time director needs to stand up and check screen
+  timeBefChg <- 2000  # how much time director needs to sit back down
+
+  con <- dbConnect(SQLite(), dbname="LexCompRI3.db")
+
+  # delete all the old stuff before we add in the new
+
+  dbGetQuery(con, "
+  DELETE FROM WatchArgs
+  WHERE WatchArgs.WatchID NOT IN (
+  SELECT Watch.WatchID
+  FROM Watch
+  JOIN State USING (StateID)
+  WHERE StateID = 999999999)")
+
+  dbGetQuery(con, "
+  DELETE FROM Watch
+  WHERE Watch.WatchID NOT IN (
+  SELECT Watch.WatchID
+  FROM Watch
+  JOIN State USING (StateID)
+  WHERE StateID = 999999999)")
+
+  dbGetQuery(con, "
+  DELETE FROM EventArgs
+  WHERE EventArgs.EventID NOT IN (
+  SELECT Event.EventID
+  FROM Event
+  JOIN State USING (StateID)
+  WHERE StateID = 999999999)")
+
+  dbGetQuery(con, "
+  DELETE FROM Event
+  WHERE Event.EventID NOT IN (
+  SELECT Event.EventID
+  FROM Event
+  JOIN State USING (StateID)
+  WHERE StateID = 999999999)")
+
+  dbGetQuery(con, "
+  DELETE FROM State
+  WHERE StateID != 999999999")
+
+  dbGetQuery(con, "
+  DELETE FROM Template 
+  WHERE TemplateID != 999999999")
+
+  # where we start adding events
+  firstEventID <- dbGetQuery(con, "SELECT MAX(EventID) FROM Event") %>%
+      `[[`("MAX(EventID)") + 1
+  firstWatchID <- dbGetQuery(con, "SELECT MAX(WatchID) FROM Watch") %>%
+      `[[`("MAX(WatchID)") + 1
+  firstStateID <- dbGetQuery(con, "SELECT MAX(StateID) FROM State WHERE StateID != 999999999") %>%
+      `[[`("MAX(StateID)")
+
+  if (is.na(firstStateID)) firstStateID <- 1
+
+  dbWriteTable(con, "Template",
+               data.frame(TemplateID=3, Timeout=NA,
+                          Name=c("main")),
+               row.names=FALSE, append=TRUE)
+
+  dbWriteTable(con, "State",
+               data.frame(StateID=firstStateID : (firstStateID + 3),
+                          TemplateID=3,
+                          Sequence=1 : 4,
+                          Name=c("pre", "main", "feedback", "clear")),
+               row.names=FALSE, append=TRUE)
+
+  # events pre
+  pre.ev <- data.frame(EventID=1 : 4,
+                       StateID=firstStateID,
+                       EvtCmdID=c(12, 2, 15, 2),
+                       Msec=c(0, 0, 1, timePre),
+                       stringsAsFactors=FALSE)
+
+  pre.ev.arg <- data.frame(EventID=c(2, 3, 3, 4),
+                           ArgID=c("Resource",
+                               "xyHome", "xyLimits",
+                               "Resource"),
+                           Info=c("$SCUE1",
+                               "512 384", "5 5 1014 758",
+                               "$SCUE2"))
+
+  # blink events
+  blink <- data.frame(EventID = seq(5, length.out = 9),
+                      StateID = 1,
+                      EvtCmdID = 52,
+                      Msec = seq(5000, 7000, 250))
+
+  blink.arg <- data.frame(EventID = rep(blink$EventID, each = 2),
+                          ArgID = c("AOI", "Layer"),
+                          Info = c(rep(c("RED", "4",
+                              "RED", "1"), 4),
+                              "POSTCHANGE", "6"),
+                          stringsAsFactors = FALSE)
+
+  # main events post change
+  post.ev <- data.frame(EventID  = seq(max(blink$EventID) + 1, length.out = 4),
+                        StateID  = rep(c(1, 2), c(1, 3)),
+                        EvtCmdID = c(2, 10, 2, 54), 
+                        Msec=rep(c(max(blink$Msec), 0),
+                            c(1, 3)))
+
+  post.ev.arg <- data.frame(EventID = post.ev$EventID,
+                            ArgID=c("Resource","Soundfile", "Resource", "MSG"),
+                            Info=c("$SCUE3","$SFILE", "go.wav", "SYNCTIME"))
+
+  fbk.ev <- data.frame(EventID  = seq(max(post.ev$EventID) + 1, length.out = 4),
+                       StateID  = rep(3 : 4, c(3, 1)),
+                       EvtCmdID = c(52, 1, 2, 5),
+                       Msec     = 0)
+
+  fbk.ev.arg <- data.frame(EventID = rep(fbk.ev$EventID, c(2, 4, 1, 0)),
+                           ArgID=c("AOI", "Layer",
+                               "Layer", "Resource",
+                               "x", "y",
+                               "Resource"),
+                           Info=c(paste0("@watch[", firstWatchID + 1, "].selectedAOI"),
+                               "7", "4", "centermouse.bmp", "430", "302",
+                               "$SCUE4"),
+                           stringsAsFactors=FALSE)
+
+  evs <- rbind(pre.ev, blink, post.ev, fbk.ev)
+  evargs <- rbind(pre.ev.arg, blink.arg, post.ev.arg, fbk.ev.arg)
+  evs$EventID <- firstEventID + evs$EventID-1
+  evargs$EventID <- firstEventID + evargs$EventID-1
+
+  watch <- data.frame(WatchID = firstWatchID : (firstWatchID + 3),
+                      StateID = firstStateID : (firstStateID + 3),
+                      WCmdID=c(8, 19, 19, 8),
+                      NextStateID=c((firstStateID + 1) : (firstStateID + 3), NA))
+
+  watch.arg <- data.frame(WatchID=rep(firstWatchID : (firstWatchID + 3),
+                              c(1, 4, 1, 1)),
+                          ArgID=rep(c("Msec", "AOI", "XY", "Msec"), c(1, 4, 1, 1)),
+                          Info=c("10000",
+                              "ERR_A", "ERR_B", "ERR_C", "STAR",
+                              "492 364 532 404", "10"))
+
+  dbWriteTable(con, "Event", evs, row.names=FALSE, append=TRUE)
+
+  dbWriteTable(con, "EventArgs", evargs, row.names=FALSE, append=TRUE)
+
+  dbWriteTable(con, "Watch", watch, row.names=FALSE, append=TRUE)
+  dbWriteTable(con, "WatchArgs", watch.arg, row.names=FALSE, append=TRUE)
+
+  dbDisconnect(con)
+#+END_SRC
+
+
+** Practice session 999 extra trials
+
+#+BEGIN_SRC R
+  ### practice session 999 extra trials
+  library("dplyr")
+  library("RSQLite")
+
+  con <- src_sqlite("LexCompRI3.db", create = FALSE)
+
+  extras <- tbl(con, "Item") %>%
+      collect() %>%
+      filter(ItemCellID < 999999997, Cell > 0) %>%
+      group_by(Cell) %>%
+      slice(1) %>% as.data.frame()
+
+  lord <- data.frame(ListOrderID = NA_integer_,
+                     ListID = 999,
+                     ItemCellID = c(999999997,
+                         10002, 10000,
+                         extras[["ItemCellID"]][1:2],
+                         999999998,
+                         10003, 10001,
+                         extras[["ItemCellID"]][3:4]),
+                     OrderConstraint = 1:5,
+                     PhaseID = rep(1 : 2, each = 5))
+
+  con2 <- dbConnect(SQLite(), "LexCompRI3.db")
+  dbGetQuery(con2, "DELETE FROM ListOrder WHERE ListID = 999")
+
+  dbWriteTable(con2, "ListOrder", lord, append = TRUE, overwrite = FALSE)
+
+  dbDisconnect(con2)
+#+END_SRC
+
+
+** Item info (once items are added)
+
+#+BEGIN_SRC R
+  #################################
+  ### add in the item info
+  library("dplyr")
+  library("RSQLite")
+
+  con <- src_sqlite("LexCompRI3.db")
+  con2 <- dbConnect(SQLite(), "LexCompRI3.db")
+  dbGetQuery(con2, "DROP TABLE IF EXISTS ItemInfo")
+  dbDisconnect(con2)
+
+  aoiloc <- readRDS("aoiloc.rds") %>%
+      as.data.frame() %>%
+      as_data_frame() %>%
+      rename(x1 = V1, y1 = V2) %>%
+      mutate(Loc = 1:4)
+
+  item <- tbl(con, "Item") %>% collect()
+  lord <- tbl(con, "ListOrder") %>% collect()
+  aoi <- tbl(con, "AOI") %>% collect()
+  res <- tbl(con, "Resource") %>% collect()
+  sym <- tbl(con, "Symbols") %>% collect()
+
+  orig <- aoi %>%
+      filter(Link == "itemcell", Name != "POSTCHANGE",
+             grepl("^[0-9]{3}", Resource)) %>%
+      mutate(ident_bef = substr(Resource, 1, 3),
+             size = substr(Resource, 5, 9)) %>%
+      select(ItemCellID = ID, ident_bef, size, Name, x1, y1)
+
+  chg <- aoi %>%
+      filter(Link == "itemcell", Name == "POSTCHANGE") %>%
+      mutate(ident_aft = substr(Resource, 1, 3)) %>%
+      select(ItemCellID = ID, ident_aft, x1, y1)
+
+  item_inf <- orig %>%
+      inner_join(item %>% filter(Cell != 0), "ItemCellID") %>%
+      left_join(chg, c("ItemCellID", "x1", "y1")) %>%
+      mutate(chg = !is.na(ident_aft),
+             ident_aft = ifelse(is.na(ident_aft), ident_bef, ident_aft)) %>%
+      select(-TemplateID, -Item, -x1, -y1)
+
+  tr <- . %>% filter(chg) %>% group_by(Cell, Name) %>% summarize(N = n())
+    
+  item_inf %>% tr()
+    
+
+  item_inf2 <- item_inf %>%
+      group_by(ItemCellID, ident_bef) %>%
+      summarize(nd = n(),
+                shar_con = (nd == 2)) %>%
+      select(-nd) %>%
+      inner_join(item_inf, c("ItemCellID", "ident_bef")) %>%
+      ungroup()
+
+  ## keep only those trials where the one that changed
+  ## was not from the target/competitor set
+  item_inf3 <- item_inf2 %>%
+      inner_join(item_inf2 %>%
+                     filter(chg, !(Name %in% c("TARGET", "COMP"))) %>%
+                     select(ItemCellID), "ItemCellID")
+
+  aoi_id <- data_frame(Name = c("TARGET", "COMP", "CONTR", "CONTR2"),
+                       ID = c("Target", "Target Contrast",
+                           "Competitor",
+                           "Competitor Contrast"))
+
+  item_inf4 <- item_inf3 %>%
+      inner_join(aoi_id, "Name") %>%
+      mutate(SymbolID_bef = as.numeric(ident_bef),
+             SymbolID_aft = as.numeric(ident_aft)) %>%
+      inner_join(sym, c("SymbolID_bef" = "SymbolID")) %>%
+      rename(Sym0 = Symbol) %>%
+      inner_join(sym, c("SymbolID_aft" = "SymbolID")) %>%
+      rename(Sym1 = Symbol) %>%
+      select(ItemCellID, Cell, 
+             size, Sym0, Sym1, chg,
+             Name, ID)
+
+  copy_to(con, item_inf4, "ItemInfo", temporary = FALSE)
+#+END_SRC
+
+
+** Add in session 998 (full session)
+
+#+BEGIN_SRC sql
+  INSERT INTO Session VALUES
+  (998, 1, 1, '2015-03-30', "NO_DATA", NULL, NULL, NULL);
+
+  INSERT INTO Subject VALUES
+  (1995, 998, 1, 'X', 'practice'),
+  (1996, 998, 2, 'X', 'practice');
+#+END_SRC
+
+* Tests
+	:PROPERTIES:
+	:header-args:R: :tangle tests.R
+	:END:
+
+#+BEGIN_SRC R
+  library("dplyr")
+  library("tidyr")
+
+  con <- src_sqlite("LexCompRI3.db")
+
+  ## pull in the data
+  itm <- tbl(con, "Item") %>% collect()
+  res <- tbl(con, "Resource") %>% collect()
+  aoi <- tbl(con, "AOI") %>% collect()
+  cnd <- tbl(con, "Condition") %>% collect()
+  iinf <- tbl(con, "ItemInfo") %>% collect()
+
+  aoiloc <- readRDS("aoiloc.rds")
+
+  ## make sure all resources have been filled in
+  ## for anything with TemplateID == 3
+  base <- itm %>%
+      filter(TemplateID == 3) %>%
+      inner_join(res, "ItemCellID") %>%
+      expand(ItemCellID, Code)
+
+  ff <- base %>%
+      anti_join(res) %>%
+      arrange(ItemCellID, Code)
+
+  stopifnot(nrow(ff) == 0) ## PASS
+
+  ## make sure all AOIs have been filled in
+  aoi2 <- aoi %>%
+      filter(Link == "itemcell") %>%
+      rename(ItemCellID = ID)
+
+  itm3 <- itm %>%
+      filter(TemplateID == 3) %>%
+      select(ItemCellID)
+
+  anames <- itm3 %>%
+      inner_join(aoi2, "ItemCellID") %>%
+      select(Name) %>%
+      distinct() %>%
+      `[[`("Name")
+
+  all_the_names <- expand.grid(ItemCellID = itm3[["ItemCellID"]],
+                               Name = anames)
+
+  ff <- all_the_names %>%
+      anti_join(aoi2, "ItemCellID")
+
+  stopifnot(nrow(ff) == 0)  # PASS
+
+  ## make sure all AOI entries are consistent
+  ff <- aoi2 %>%
+      expand(ItemCellID, Name) %>%
+      anti_join(aoi2) 
+
+  stopifnot(nrow(ff) == 0)  # PASS
+
+  ## make sure the contrast change in the way intended
+  ## i.e., two-one or one-two
+  bef <- aoi2 %>%
+      filter(grepl("^[0-9]{3}", Resource),
+             Name != "POSTCHANGE") %>%
+      arrange(ItemCellID) %>%
+      mutate(Phase = "0-pre") %>%
+      select(ItemCellID, Phase, Name, Resource, x1, y1)
+
+  post <- aoi2 %>%
+      filter(Name == "POSTCHANGE") %>%
+      arrange(ItemCellID) %>%
+      select(-Name) %>%
+      inner_join(bef %>% select(-Resource), c("ItemCellID", "x1", "y1")) %>%
+      mutate(Phase = "1-post") %>%
+      select(ItemCellID, Phase, Name, Resource, x1, y1)
+
+  aft <- bef %>%
+      anti_join(post, c("ItemCellID", "Name")) %>%
+      mutate(Phase = "1-post") %>%
+      bind_rows(post) %>%
+      arrange(ItemCellID)
+
+  phs <- bind_rows(bef, aft) %>%
+      mutate(sym = as.integer(substr(Resource, 1, 3)),
+             size = substr(Resource, 5, 5)) %>%
+      arrange(ItemCellID, Phase, Name)
+
+  phs2 <- phs %>% group_by(ItemCellID, Phase, sym) %>%
+      summarize(N = n()) %>%
+      ungroup() %>%
+      group_by(ItemCellID, Phase) %>%
+      summarize(N = n()) %>%
+      ungroup() %>%
+      inner_join(itm %>% select(ItemCellID, Cell)) %>%
+      inner_join(cnd, "Cell") %>%
+      select(-Status, -Cell) %>%
+      spread(Phase, N) %>%
+      group_by(Contrast, `0-pre`, `1-post`) %>%
+      summarize(N = n()) %>%
+      ungroup()
+
+  stopifnot( (filter(phs2, (Contrast == "one-two" & ((`0-pre` != 3) | (`1-post` != 2))) |
+                         (Contrast == "two-one" & ((`0-pre` != 2) | (`1-post` != 3)))) %>%
+                         nrow()) == 0)
+
+
+  ## see which ones changes in each condition
+  chgd <- phs %>%
+      select(ItemCellID, Phase, Name, Resource) %>%
+      spread(Phase, Resource) %>%
+      filter(`0-pre` != `1-post`) %>%
+      inner_join(itm)
+
+  ff <- chgd %>% group_by(Cell, Name) %>% summarize(N = n())
+
+  stopifnot((nrow(ff) == 16) && (length(ff %>% `[[`("N") %>% unique()) == 1))
+
+  ## sample one item with each type of change
+  itm_samp <- chgd %>%
+      inner_join(cnd, "Cell") %>%
+      group_by(Contrast, Name) %>%
+      sample_n(1) %>%
+      ungroup() %>%
+      select(ItemCellID, Chg = Name, Contrast)
+
+  ## TODO: make sure half go to large and half go to small
+  ff <- aoi2 %>%
+      filter(Name == "TARGET") %>%
+      mutate(size = substr(Resource, 5, 9)) %>%
+      inner_join(itm, "ItemCellID") %>%
+      filter(Cell > 0) %>%
+      group_by(Cell, size) %>%
+      summarize(N = n()) %>%
+      `[[`("N")
+
+  stopifnot((length(ff) == 8) | (length(unique(ff)) == 1))
+
+  ## manually check AOIs for each type
+  itm_samp %>%
+      inner_join(aoi2, "ItemCellID") %>%
+      select(ID = ItemCellID,
+             Chg,
+             Contrast, Name, Resource, x1, y1) %>%
+      print(n = 1000)
+
+#+END_SRC
