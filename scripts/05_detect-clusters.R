@@ -63,6 +63,7 @@ teststat_by_frame <- function(x, unit, nmc = 1000L) {
 
 get_cluster_teststats <- function(x, unit, cl,
                                   nboot = 10L, nperm = 10L) {
+
   x2 <- x %>%
     mutate(ms = frame_adj * 4) %>%
     select(-frame_adj)
@@ -75,8 +76,10 @@ get_cluster_teststats <- function(x, unit, cl,
   dat_orig <- x2 %>%
     inner_join(uinf, c(unit, "Speaker", "Listener"))
 
+  message("calculating original test statistics from ", nboot, " bootstrap samples")
   orig_tstat <- teststat_by_frame(dat_orig, unit, nboot)
 
+  message("calculating nhd over '", unit, "' from ", nperm, " permutation runs")  
   res <- parLapply(cl, seq_len(nperm), function(ix, y, u, un, nb) {
     y %>% permute(u, un) %>% teststat_by_frame(un, nb)
   }, y = x2, u = uinf, un = unit, nb = nboot)
@@ -157,15 +160,11 @@ nperm <- 1000L
 ## nboot <- 50L
 ## nperm <- 10L
 
-message("calculating by-subject NHD from ", nperm, " permutations")
 tstat_subj <- get_cluster_teststats(pog_subj, "SessionID", cl, nboot, nperm)
-saveRDS(tstat_subj, "data-tmp/tstat_subj.rds")
 clust_subj <- get_cluster_pvals(tstat_subj) %>%
   mutate(unit = "SessionID")
 
-message("calculating by-item NHD from ", nperm, " permutations")
 tstat_item <- get_cluster_teststats(pog_item, "ItemID", cl, nboot, nperm)
-saveRDS(tstat_item, "data-tmp/tstat_item.rds")
 clust_item <- get_cluster_pvals(tstat_item) %>%
   mutate(unit = "ItemID")
 
