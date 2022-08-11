@@ -1,0 +1,128 @@
+#+options: toc:nil num:nil ^:nil
+#+LATEX_HEADER: \sixauthors{Hanna Jarvinen}{Beata Kova\'cs}{Shannon McNee}{Alistair Beith}{Kieran O'Shea}{Dale J. Barr}
+#+LATEX_HEADER: \sixaffiliations{University of Glasgow}{University of Glasgow}{University of Glasgow}{University of Glasgow}{University of Glasgow}{University of Glasgow}
+#+LATEX_HEADER: \abstract{\input{abstract.tex}}
+#+LATEX_HEADER: \shorttitle{Circumscribing referential domains}
+#+OPTIONS: ^:nil toc:nil num:nil
+#+LATEX_CLASS: apa6
+#+LATEX_CLASS_OPTIONS: [natbib,doc]
+#+description:
+#+keywords:
+#+subtitle:
+#+latex_compiler: pdflatex
+#+date: \today
+#+TITLE: Circumscribing referential domains
+
+* Introduction
+
+Successfully understanding a speaker's intended meaning often requires listeners to take into account a speaker's differing cognitive states.
+
+How effectively can listeners take a speaker's differing perspective into account when comprehending referential expressions?  One key area in which this question has been investigated concerns the processing of expressions containing adjectival modifiers.  It is believed that listeners are able to rapidly restrict the domain of reference on the fly (Sedivy).  Showing that listeners are able to rapidly and efficiently restrict the referential domain from the speaker's perspective.
+
+Visual occlusion studies.  Heller et al.
+
+Temporal discrepancy.
+
+Different beliefs about object identity.  Mozuritas et al.
+
+\citep{Mozuraitis_Chambers_Daneman_2015}
+
+** Task overview
+
+#+CAPTION: Factorial design of the experiment, showing the four conditions and the four possible referring expressions the speaker could use in each.  The speaker's perspective is represented by the shaded array, and the listener's perspective by the array with the double border.
+#+NAME: fig:expdesign
+[[file:fig/design_fig.pdf]]
+
+See the main design of the experiment in Figure\nbsp{}[[fig:expdesign]].
+
+To minimize the impact of our own theoretical biases on the results, we pre-registered our study, including the sample size and method of analysis, at (link).
+
+Most studies in psychology are underpowered (citation), and psycholinguistics is no exception.  Studies using visual world eyetracking present a particular problem for power, inasmuch as the fundamental measurement is generally binary (e.g., looking at the target or not), and thus contains limited information relative to a continuous measure such as response time.  
+
+For instance, the Heller et al. study includes just 16 participants with four trials per condition.
+
+Using computerized displays instead of real objects increased the efficiency of the experiment, and thus made it easier to collect more data per participant.  We also sought to collect a larger number of participants.
+
+* Experiment 1
+
+** Method
+
+*** Participants
+
+Participants were 20 undergraduate and postgraduate students from the University of Glasgow. All subjects were native speakers of English. They all had normal vision or wore soft contact lenses. They were asked to remove their eye makeup for the experiment. Their average age was 22 years; 16 of them were females and seven were males. Ten of the participants had trials in the Shared Antecedent condition in the first half of the experiment, followed by the Shared Result trials; the remaining ten had them in the reverse order.
+
+*** Apparatus
+
+The experiment took place in a small laboratory room. The visual stimuli were presented on a 17” computer monitor at 1024x768 resolution, approximately 500–600 cm in front of the participant. The research assistant who played the role of the speaker received auditory cues to guide her behaviour which were presented via headphones. An Eyelink 1000 (SR Research) was used to track participants’ gaze. The system uses a remote tabletop camera and corrects for head position based on image processing of a small sticker placed on the participant’s forehead. Data were recorded at a sampling rate of 500 Hz.
+
+*** Materials
+
+Each trial of the experiment always consisted of four ‘objects’ on the screen, which were typographical symbols (Figure 1) In the first stimuli display there were two objects that formed a contrast pair as they were the same sign but of different sizes. In the middle of each trial, the frame around one of the objects started flashing from white to red, which was followed by the change of the object inside that frame. The flashing was to ensure the participant’s attention to this object as it changed identity. Figure 2 is an example of what the display looked like after the change. The stimuli display after the change always contained two contrast pairs. When the participant carried out the task in a trial by clicking on one of the objects, either a yellow star (Figure 3) or a red X (Figure 4) was shown to signal a right or a wrong response, respectively. At the end of each trial after clicking, a blue square was displayed in the middle of the screen for the participant to click on to advance to the next trial. One of the four objects shown on the participant’s screen was the Target object in each trial. Pre-recorded sounds in the participant’s headphones provided guidance for her on what behaviours to execute and when to execute them for the different conditions of the experiment. A prerecorded voice said a number between one to four referring to the box in which the Target object was.
+
+Sound recordings were made during each trial from the point when the assistant heard the sound in her headphones prompting her to name the target, until when the participant clicked 9on the above mentioned blue square and the trial ended. The open-source software package Audacity was used to tag the onset of the adjective, the offset of the adjective, the onset of the noun and the offset of the noun in those sound files that contained a modified noun phase. R was used to carry out statistical analysis.
+
+Note that there were an additional 48 trials in each experimental session that served as filler trials. Although these trials were included as a separate manipulation, due to a programming error it was not possible to analyse them. For the purpose of this manuscript they are considered as filler trials.
+
+In some of these filler trials, the speaker had to refer to one of the changed objects or to objects that were not part of the original contrast pair. As a result, listeners would not be able to predict with certainty on any given trial which of the four objects the speaker would refer to based on within-experiment contingencies.
+
+*** Design
+
+The experiment had a within subjects design with all the participants completing all the conditions. The trials in each of the two conditions were administered in a manner that was blocked by condition (Shared Antecedent or Shared Result), to make it easier for participants to remember what the speaker did and did not know on any particular trial. The dependent variable of the experiment was the average probability of looks to the Target object on the screen in the time intervals when the assistant pronounced the modified noun phase.
+
+There were two independent variables with two levels each. One of them was Status: whether the assistant saw the screen after or before the change. The two levels of Status were Shared Antecedent, where the assistant’s and the participant’s views of the screen were shared before the change; and Shared Result, meaning that they their perspectives of the screen were shared as a result of the change only. Each participant completed 48 trials all together and 24 of these took place in the Shared Antecedent (critical condition), and the other half in the Shared Result (control) condition. The order of these two conditions was counterbalanced so that ten participants completed the Shared Result condition first and then the Shared Antecedent condition, and the other ten subjects completed them it in reversed order.
+
+The second factor was Window: three time windows were separated from the sound files. In each recording the assistant names a modified noun, always in the form “small A” (in the example on the Figures). Three different time windows were looked at. As it takes roughly 200 ms for the eye to launch a saccade after stimuli onset (Matin Shao, Kenneth, 1993), the Modifier window started 200 ms after the onset of the adjective and ended 200 ms after the onset of the noun. The Noun window started 200 ms after noun onset and always had the same length as the Modifier window, which differed across trials. The third window was the Baseline window, which captures attentional biases prior to the modifier. This was defined to be the same duration as the modifier window, and ended 200 ms after adjective onset.
+
+*** Procedure
+
+The participant (the listener; will be referred to as he) is sitting in front of a computer. The assistant (the speaker; will be referred to as she) sits next to the computer on her swivel chair. The experimenter first explained the procedure and what the listener would be asked to do. After signing the informed consent form, there was another sheet below it describing that each trial will involve a change of one of the objects on the screen, which the speaker is unaware of, as she would be exposed to the screen either before or after the change occurred. After calibration was carried out with tracking the participant’s right eye, the experiment started with three practice trials. After every third trial, a drift correction screen appeared with a small fixation point in the middle allowing a chance for the experimenter to verify that the eye-tracker was still appropriately tracking the eye.
+
+In the Shared Result condition, the speaker first heard a sound indicating that it is the start of the trial and she should turn away from the screen. The speaker always made sure at this point that the listener was aware of her not seeing the screen. During this time the listener saw the stimuli and the change of one of the objects. The speaker then heard the number referring to the box the Target object was in, turned to face the screen and identified the Target object. Upon hearing the next sound signal (the “go” signal), she named the Target and the participant clicked on it.
+
+In the Shared Antecedent condition, the speaker was first facing the screen while she heard the number via the headphones and identified the Target silently, before hearing another sound signalling for her to turn away. At this point the listener saw the change of one of the objects on the screen. In this condition, because the speaker was turned away from the screen when the change occurred, when she gave instructions she would not be aware of what the post-change screen looked like.
+
+After clicking on the Target, the participant clicked on the blue square in the middle of the screen for the next trial in order to centre the mouse cursor. On completion of the experiment the participant was debriefed about the purpose of the study. When asked, none of the subjects could suspect that the study was investigating perspective-taking in conversation. It was also evident that the assistant did not know what the screen looked like when she was turned away, as there were 48 trials and the combination of objects was always different.
+
+** Results
+
+*** Manipulation check 
+
+One possible concern is that listeners simply ignored the changing letter.
+
+Did listeners look more at the changed object when perpectives mismatched?
+
+*** Time-course analysis
+
+We now turn to our main pre-registered analysis.
+
+#+CAPTION: Probability of gazing at each image time-locked to noun onset, across the "Speaker-Early" and "Speaker-Late" conditions, Experiment\nbsp{}1.
+#+NAME: fig:e1-gaze-prob
+[[file:exp1/img/gaze-probability.pdf]]
+
+#+CAPTION: Log ratio of gazing at the target (vs. competitor) time-locked to the onset of the adjective, Experiment\nbsp{}1. The dashed line represents an equal probability of gazing at the target versus competitor.
+#+NAME: fig:e1-lratio
+[[file:exp1/img/log-ratio.pdf]]
+
+Figure\nbsp{}[[fig:e1-gaze-prob]] shows the overall gaze probability by condition, while Figure\nbsp{}[[fig:e1-lratio]] shows the log ratio, time-locked to adjective onset.
+
+* Experiment 2
+
+** Method
+
+** Results
+
+#+CAPTION: Probability of gazing at each image time-locked to noun onset, across the cells of the design, Experiment\nbsp{}2.
+#+NAME: fig:e2-gaze-prob
+[[file:exp2/img/gaze-probability.pdf]]
+
+#+CAPTION: Log ratio of gazing at the target (vs. competitor) time-locked to the onset of the adjective, Experiment\nbsp{}2. The dashed line represents an equal probability of gazing at the target versus competitor.
+#+NAME: fig:e2-lratio
+[[file:exp2/img/log-ratio.pdf]]
+
+Figure\nbsp{}[[fig:e2-gaze-prob]] shows the overall gaze probability by condition, while Figure\nbsp{}[[fig:e2-lratio]] shows the log ratio, time-locked to adjective onset.
+
+* General Discussion
+
+TODO
+
+\bibliography{refs}

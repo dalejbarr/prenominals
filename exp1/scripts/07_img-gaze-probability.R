@@ -1,7 +1,9 @@
 suppressPackageStartupMessages(library("dplyr"))
 library("ggplot2")
+library("forcats")
 
-dat <- readRDS("data-derived/gaze-plot-full.rds")
+dat <- readRDS("data-derived/gaze-plot-full.rds") %>%
+  mutate(Image = fct_relevel(Image, "Target", "Target Contrast"))
 
 col_scale <- c("#E69F00", "#56B4E9", "#009E73", "#CC79A7")
 

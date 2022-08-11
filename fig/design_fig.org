@@ -1,0 +1,126 @@
+#+NAME: design-fig
+#+header: :headers '("\\usepackage{tikz}" "\\usepackage{helvet}" "\\usetikzlibrary{matrix, fit}" "\\renewcommand{\\rmdefault}{ptm}" "\\usepackage[none]{hyphenat}") 
+#+BEGIN_SRC latex :file design_fig.pdf :fit yes :results raw
+  \tikzstyle{lab}=[text width=3cm,text centered]
+  \tikzstyle{labtop}=[text centered]
+  \tikzstyle{cell}=[draw, rounded corners]
+  \tikzstyle{cellS}=[draw,fill=black!10,rounded corners]
+  \tikzstyle{cellL}=[draw,double,rounded corners]
+  \tikzstyle{cellSL}=[draw,fill=black!10,double,rounded corners]
+  \tikzstyle{cmat}=[matrix,draw]
+  \tikzstyle{filler}=[opacity=.5,minimum width={width("99.") + 8pt}]
+  \tikzstyle{nnode}=[minimum width={width("99.") + 8pt},align=right]
+  \tikzstyle{dnode}=[minimum height={height("'large B'") + 9pt},
+    minimum width={width("'small A'") + 10pt}]
+  \tikzstyle{dfnode}=[minimum height={height("'large B'") + 10pt},
+    minimum width={width("'small A'") + 9pt},
+    opacity=.5]
+  \begin{tikzpicture}
+    \node [matrix] (my matrix) {
+  
+      %% Column headings
+      & \node[labtop] (onetwo) {\Large Listener Early}; & 
+      \node[labtop] (twoone) {\Large Listener Late}; \\
+  
+      %% First row, first column
+      \node[lab] (SA) {\Large Speaker Early}; & 
+  
+      %% First row, second column
+      \node[cmat] {
+	\node[matrix] {
+	  \node[cell,matrix] {
+	    \node{\Large A}; & \node{\small A}; \\
+	    \node{\Large B}; & \node{\small B}; \\
+	  }; &
+	  \node{$\rightarrow$}; &
+	  \node[cellSL,matrix] {
+	    \node{\Large A}; & \node{\small A}; \\
+	    \node{\Large B}; & \node{\small D}; \\
+	  }; &
+	  \node[matrix] {
+	    \node[dnode]{`large A'}; \\
+	    \node[dnode]{`small A'}; \\
+	    \node[dfnode]{`B'}; \\
+	    \node[dfnode]{`D'}; \\
+	  }; \\
+	}; \\ 
+	\node{perspectives match}; \\
+      }; &
+  
+      %% first row, third column
+      \node[cmat] {
+	\node[matrix] {
+	  %% first row
+	  \node[cellS,matrix] {
+	    \node{\Large A}; & \node{\small A}; \\
+	    \node{\Large B}; & \node{\small D}; \\
+	  }; &
+	  \node{$\rightarrow$}; &
+	  \node[cellL,matrix] {
+	    \node{\Large A}; & \node{\small A}; \\
+	    \node{\Large B}; & \node{\small B}; \\
+	  }; &
+	  \node[matrix] {
+	    \node[dnode]{`large A'}; \\
+	    \node[dnode]{`small A'}; \\
+	    \node[dfnode]{`B'}; \\
+	    \node[dfnode]{`D'}; \\
+	  }; \\
+	}; \\
+	%% second row
+	\node{perspectives mismatch}; \\
+      }; \\
+  
+      %% Second row
+      \node[lab] (SR) {\Large Speaker Late}; & 
+  
+      %% second row, first column
+      \node[cmat] {
+	\node[matrix] {
+	  \node[cellS,matrix] {
+	    \node{\Large A}; & \node{\small A}; \\
+	    \node{\Large B}; & \node{\small B}; \\
+	  }; &
+	  \node{$\rightarrow$}; &
+	  \node[cellL,matrix] {
+	    \node{\Large A}; & \node{\small A}; \\
+	    \node{\Large B}; & \node{\small D}; \\
+	  }; &
+	  \node[matrix] {
+	    \node[dnode]{`large A'}; \\
+	    \node[dnode]{`small A'}; \\
+	    \node[dfnode]{`large B'}; \\
+	    \node[dfnode]{`small B'}; \\
+	  }; \\
+	}; \\ % end first row
+	%% second row
+	\node{perspectives mismatch}; \\
+      }; &
+  
+      %% second row, third column
+      \node[cmat] {
+	\node[matrix] {
+	  \node[cell,matrix] {
+	    \node{\Large A}; & \node{\small A}; \\
+	    \node{\Large B}; & \node{\small D}; \\
+	  }; &
+	  \node{$\rightarrow$}; &
+	  \node[cellSL,matrix] {
+	    \node{\Large A}; & \node{\small A}; \\
+	    \node{\Large B}; & \node{\small B}; \\
+	  }; &
+	  \node[matrix] {
+	    \node[dnode]{`large A'}; \\
+	    \node[dnode]{`small A'}; \\
+	    \node[dfnode]{`large B'}; \\
+	    \node[dfnode]{`small B'}; \\
+	  }; \\
+	}; \\ 
+	%% second row
+	\node{perspectives match}; \\
+      }; \\
+    };
+  \end{tikzpicture}
+#+END_SRC
+
+#+RESULTS: design-fig
