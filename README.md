@@ -1,6 +1,6 @@
-# Study on processing of prenominal adjectives
+# Perspective taking in the processing of prenominal adjectives
 
-- Note: restarted on 30 March 2015 after discovery of programming error
-- LexCompRI3.db / LexCompRI3.org contain patched version of experiment
+This repository contains data and code relating to two experiments investigating the effects of perspective differences on the processing of prenominal size adjectives.
 
-- packages needed: dalejbarr/eyeread, dplyr, tidyr, purrr, Rcpp, wesm/feather/R
+The pre-registration for Experiment 2 is [available at OSF](https://osf.io/mfydr).
+
